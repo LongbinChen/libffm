@@ -2,7 +2,7 @@
 #define _LIBFFM_H
 
 #include <string>
-
+#include <cmath>
 namespace ffm {
 
 using namespace std;
@@ -45,6 +45,20 @@ ffm_model ffm_load_model(string path);
 ffm_model ffm_train_on_disk(string Tr_path, string Va_path, ffm_parameter param);
 
 ffm_float ffm_predict(ffm_node *begin, ffm_node *end, ffm_model &model);
+
+#if defined USESSE
+ffm_int const kALIGNByte = 16;
+#else
+ffm_int const kALIGNByte = 4;
+#endif
+
+ffm_int const kALIGN = kALIGNByte/sizeof(ffm_float);
+ffm_int const kCHUNK_SIZE = 10000000;
+ffm_int const kMaxLineSize = 100000;
+
+inline ffm_int get_k_aligned(ffm_int k) {
+    return (ffm_int) ceil((ffm_float)k / kALIGN) * kALIGN;
+}
 
 } // namespace ffm
 

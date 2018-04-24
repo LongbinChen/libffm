@@ -51,19 +51,6 @@ namespace {
 
 using namespace std;
 
-#if defined USESSE
-ffm_int const kALIGNByte = 16;
-#else
-ffm_int const kALIGNByte = 4;
-#endif
-
-ffm_int const kALIGN = kALIGNByte/sizeof(ffm_float);
-ffm_int const kCHUNK_SIZE = 10000000;
-ffm_int const kMaxLineSize = 100000;
-
-inline ffm_int get_k_aligned(ffm_int k) {
-    return (ffm_int) ceil((ffm_float)k / kALIGN) * kALIGN;
-}
 
 ffm_long get_w_size(ffm_model &model) {
     ffm_int k_aligned = get_k_aligned(model.k);
