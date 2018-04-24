@@ -583,8 +583,9 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
                 if(do_update) {
                    
                     ffm_float kappa = -y*expnyt/(1+expnyt);
+                    ffm_float eta_t = param.eta / pow(param.power_t, l);
 
-                    wTx(begin, end, r, model, kappa, param.eta, param.lambda, true);
+                    wTx(begin, end, r, model, kappa, eta_t, param.lambda, true);
                 }
             }
         }
