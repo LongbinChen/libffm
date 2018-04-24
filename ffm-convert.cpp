@@ -63,15 +63,13 @@ void convert(string model_path, string output_path, int field_id) {
 
     for(int f = 0; f < model.n ; f ++){
         int j = field_id;
-        f_out << f << '\t' << j;
         ffm_float *w = model.W + (ffm_long)f*align1 + j*align0;
         for(ffm_int d = 0; d < align0; d += kALIGN * 2){
             __m128  XMMw1 = _mm_load_ps(w+d);
             float result[4];
             _mm_store_ps(result, XMMw1);
-            for(int kk = 0; kk < 4; kk ++) {
-                f_out  << '\t' << result[kk];
-            }
+            if (d > 0) { f_out <<  '\t';}
+            f_out << result[0] << '\t' << result[1] << '\t' << result[2] << '\t' << result[3];
         }
         f_out << endl;
     }
@@ -93,10 +91,10 @@ void convert(string model_path, string output_path, int field_id) {
 
     for(int f = 0; f < model.n ; f ++){
         int j = field_id;
-        f_out << f << '\t' << j;
         ffm_float *w = model.W + (ffm_long)f*align1 + j*align0;
         for(ffm_int d = 0; d < align0; d += kALIGN * 2){
-            f_out  << '\t' << w[d];
+            if (d > 0) { f_out << '\t' ;}
+            f_out << w[d];
         }
         f_out << endl;
     }
