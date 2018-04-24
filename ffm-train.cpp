@@ -91,6 +91,13 @@ Option parse_option(int argc, char **argv) {
             opt.param.lambda = atof(args[i].c_str());
             if(opt.param.lambda < 0)
                 throw invalid_argument("regularization cost should not be smaller than zero");
+        }  else if(args[i].compare("-w") == 0) {
+            if(i == argc-1)
+                throw invalid_argument("need to specify power_t after -w");
+            i++;
+            opt.param.power_t = atof(args[i].c_str());
+            if(opt.param.power_t < 0)
+                throw invalid_argument("power t should not be smaller than zero");
         } else if(args[i].compare("-s") == 0) {
             if(i == argc-1)
                 throw invalid_argument("need to specify number of threads after -s");

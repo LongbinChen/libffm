@@ -32,6 +32,8 @@ struct ffm_parameter {
     ffm_float lambda = 0.00002; // regularization parameter
     ffm_int nr_iters = 15;
     ffm_int k = 4; // number of latent factors
+    ffm_float power_t = 0.0; // eta_t = eta / t ^ power_t
+
     bool normalization = true;
     bool auto_stop = false;
 };
