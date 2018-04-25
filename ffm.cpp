@@ -542,11 +542,13 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
     }
     cout.width(13);
     cout << "tr_time";
+    cout.width(13);
+    cout << "eta";
     cout << endl;
 
     Timer timer;
 
-    auto one_epoch = [&] (problem_on_disk &prob, bool do_update) {
+    auto one_epoch = [&] (problem_on_disk &prob, bool do_update, int iter = 1) {
 
         ffm_double loss = 0;
 
@@ -583,7 +585,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
                 if(do_update) {
                    
                     ffm_float kappa = -y*expnyt/(1+expnyt);
-                    ffm_float eta_t = param.eta / pow(param.power_t, l);
+                    ffm_float eta_t = param.eta / pow(iter, param.power_t);
 
                     wTx(begin, end, r, model, kappa, eta_t, param.lambda, true);
                 }
@@ -595,7 +597,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
 
     for(ffm_int iter = 1; iter <= param.nr_iters; iter++) {
         timer.tic();
-        ffm_double tr_loss = one_epoch(tr, true);
+        ffm_double tr_loss = one_epoch(tr, true, iter);
         timer.toc();
 
         cout.width(4);
@@ -621,7 +623,10 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             }
         }
         cout.width(13);
-        cout << fixed << setprecision(1) << timer.get() << endl;
+        cout << fixed << setprecision(1) << timer.get();
+        cout.width(13);
+        cout << setprecision(5) << (param.eta / pow(iter, param.power_t)) << endl;
+
     }
 
     return model;

@@ -24,6 +24,7 @@ string train_help() {
 "-l <lambda>: set regularization parameter (default 0.00002)\n"
 "-k <factor>: set number of latent factors (default 4)\n"
 "-t <iteration>: set number of iterations (default 15)\n"
+"-w <power>: learning rate decay factor, learning rate will decay as eta / power(t, w) (default 0)\n"
 "-r <eta>: set learning rate (default 0.2)\n"
 "-s <nr_threads>: set number of threads (default 1)\n"
 "-p <path>: set path to the validation set\n"
