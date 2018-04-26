@@ -604,7 +604,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
     auto auc_metric = [&] (problem_on_disk &prob) {
 
         // for calculating auc
-        int bin_auc = 100;
+        int bin_auc = 10000;
         ffm_double positive = 0.0;
         ffm_double negative = 0.0;
         vector<int> positive_count;
@@ -621,9 +621,6 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             ffm_int l = prob.load_block(blk);
 
 
-#if defined USEOMP
-#pragma omp parallel for schedule(static) reduction(+: loss)
-#endif
             for(ffm_int ii = 0; ii < l; ii++) {
                 ffm_int i = ii;
 
