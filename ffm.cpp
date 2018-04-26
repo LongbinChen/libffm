@@ -543,6 +543,8 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
         cout << "va_logloss";
         cout.width(13);
         cout << "va_auc";
+        cout.width(13);
+        cout << "pair_auc";
     }
     cout.width(13);
     cout << "tr_time";
@@ -601,27 +603,33 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
     };
 
 
-    auto auc_metric = [&] (problem_on_disk &prob) {
+    auto auc_metric = [&] (problem_on_disk &prob, ffm_double& pair_auc) {
 
         // for calculating auc
         int bin_auc = 10000;
         ffm_double positive = 0.0;
         ffm_double negative = 0.0;
         vector<int> positive_count;
+        vector<int> positive_pair_count;
         vector<int> negative_count;
+        vector<int> negative_pair_count;
+        int sample_count = 0;
+        ffm_float pre_t = 0;
 
         for (int id = 0; id < bin_auc; id++) {
             positive_count.push_back(0);
             negative_count.push_back(0);
+            positive_pair_count.push_back(0);
+            negative_pair_count.push_back(0);
         }
 
-
         vector<ffm_int> outer_order(prob.meta.num_blocks);
+
         for(int blk = 0 ; blk < prob.meta.num_blocks; blk ++ ) {
             ffm_int l = prob.load_block(blk);
 
-
             for(ffm_int ii = 0; ii < l; ii++) {
+                 
                 ffm_int i = ii;
 
                 ffm_float y = prob.Y[i];
@@ -641,8 +649,21 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
                 } else {
                     negative_count[bin_idx] += 1;
                     negative += 1.0;
-                    
                 }
+
+                if (sample_count % 2 == 1) {
+                    ffm_float delta_t = pre_t - t;
+                    ffm_double sigmoid_t = 1.0 / (1.0 + exp(-delta_t));
+                    int bin_idx = int(sigmoid_t * bin_auc + 0.5);
+                    positive_pair_count[bin_idx] += 1;
+                    sigmoid_t = 1.0 / (1.0 + exp(delta_t));
+                    bin_idx = int(sigmoid_t * bin_auc + 0.5);
+                    negative_pair_count[bin_idx] += 1;
+                } else {
+                    pre_t = t; 
+                }
+
+                sample_count += 1;
             }
         }
         // calculating auc
@@ -664,6 +685,22 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             pre_fp = fp;
             pre_tp = tp;
         }
+
+        ffm_double true_positive_pair = 0.0;
+        ffm_double false_positive_pair = 0.0;
+        pre_tp = 1.0;
+        pre_fp = 1.0;
+        pair_auc = 0.0;
+        for (int i = 0; i < bin_auc; i ++){
+            true_positive_pair += positive_pair_count[i];
+            false_positive_pair += negative_pair_count[i];
+            ffm_double tp = 1.0 - true_positive_pair / positive;
+            ffm_double fp = 1.0 - false_positive_pair / negative;
+            pair_auc += abs(fp - pre_fp) * (tp + pre_tp) / 2.0;
+            pre_fp = fp;
+            pre_tp = tp;
+        }
+       
        
         return auc;
     };
@@ -683,13 +720,16 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             ffm_double va_loss = one_epoch(va, false);
             //ffm_double va_loss = 0.0;
 
-            ffm_double va_auc_loss = auc_metric(va);
-            //ffm_double va_auc_loss = 0.0;
+            ffm_double pair_auc;
+            ffm_double va_auc_loss = auc_metric(va, pair_auc);
 
             cout.width(13);
             cout << fixed << setprecision(5) << va_loss;
             cout.width(13);
             cout << fixed << setprecision(5) << va_auc_loss;
+            cout.width(13);
+            cout << fixed << setprecision(5) << pair_auc;
+
 
             if(auto_stop) {
                 if(va_loss > best_va_loss) {
