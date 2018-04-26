@@ -1,12 +1,12 @@
 CXX = g++
-CXXFLAGS = -Wall -O3 -std=c++0x -march=native
+CXXFLAGS = -Wall -O3 -std=c++0x -march=native -g
 
 # comment the following flags if you do not want to SSE instructions
 DFLAG += -DUSESSE
 
 # comment the following flags if you do not want to use OpenMP
-DFLAG += -DUSEOMP
-CXXFLAGS += -fopenmp
+#DFLAG += -DUSEOMP
+#CXXFLAGS += -fopenmp
 
 all: ffm-train ffm-predict ffm-convert
 

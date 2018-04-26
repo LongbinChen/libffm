@@ -311,8 +311,10 @@ struct problem_on_disk {
     }
 
     int load_block(int block_index) {
-        if(block_index >= meta.num_blocks)
+        if(block_index >= meta.num_blocks){
+            cerr<< "block idx " << block_index << " is larger than total number of blocks "<<meta.num_blocks << endl;
             assert(false);
+        }
 
         f.seekg(B[block_index]);
 
@@ -539,6 +541,8 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
     {
         cout.width(13);
         cout << "va_logloss";
+        cout.width(13);
+        cout << "va_auc";
     }
     cout.width(13);
     cout << "tr_time";
@@ -551,6 +555,8 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
     auto one_epoch = [&] (problem_on_disk &prob, bool do_update, int iter = 1) {
 
         ffm_double loss = 0;
+        ffm_float eta_t = param.eta / pow(iter, param.power_t);
+
 
         vector<ffm_int> outer_order(prob.meta.num_blocks);
         iota(outer_order.begin(), outer_order.end(), 0);
@@ -585,8 +591,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
                 if(do_update) {
                    
                     ffm_float kappa = -y*expnyt/(1+expnyt);
-                    ffm_float eta_t = param.eta / pow(iter, param.power_t);
-
+                    
                     wTx(begin, end, r, model, kappa, eta_t, param.lambda, true);
                 }
             }
@@ -594,6 +599,78 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
 
         return loss / prob.meta.l;
     };
+
+
+    auto auc_metric = [&] (problem_on_disk &prob) {
+
+        // for calculating auc
+        int bin_auc = 100;
+        ffm_double positive = 0.0;
+        ffm_double negative = 0.0;
+        vector<int> positive_count;
+        vector<int> negative_count;
+
+        for (int id = 0; id < bin_auc; id++) {
+            positive_count.push_back(0);
+            negative_count.push_back(0);
+        }
+
+
+        vector<ffm_int> outer_order(prob.meta.num_blocks);
+        for(int blk = 0 ; blk < prob.meta.num_blocks; blk ++ ) {
+            ffm_int l = prob.load_block(blk);
+
+
+#if defined USEOMP
+#pragma omp parallel for schedule(static) reduction(+: loss)
+#endif
+            for(ffm_int ii = 0; ii < l; ii++) {
+                ffm_int i = ii;
+
+                ffm_float y = prob.Y[i];
+                
+                ffm_node *begin = &prob.X[prob.P[i]];
+
+                ffm_node *end = &prob.X[prob.P[i+1]];
+
+                ffm_float r = param.normalization? prob.R[i] : 1;
+
+                ffm_double t = wTx(begin, end, r, model);
+                ffm_double sigmoid_t = 1.0 / (1.0 + exp(-t));
+                int bin_idx = int(sigmoid_t * bin_auc + 0.5);
+                if (y > 0) {
+                    positive_count[bin_idx] += 1;
+                    positive += 1.0;
+                } else {
+                    negative_count[bin_idx] += 1;
+                    negative += 1.0;
+                    
+                }
+            }
+        }
+        // calculating auc
+        ffm_double true_positive = 0.0;
+        ffm_double false_positive = 0.0;
+        ffm_double pre_tp = 1.0;
+        ffm_double pre_fp = 1.0;
+        ffm_double auc = 0.0;
+        //cout<< "positive: " <<positive << ", negative: "<< negative << endl;
+        
+        for (int i = 0; i < bin_auc; i ++){
+            true_positive += positive_count[i];
+            false_positive += negative_count[i];
+            ffm_double tp = 1.0 - true_positive / positive;
+            ffm_double fp = 1.0 - false_positive / negative;
+            auc += abs(fp - pre_fp) * (tp + pre_tp) / 2.0;
+            //cout << " idx: " << i << " positive@idx " << positive_count[i] << " negative@idx "<<negative_count[i];
+            //cout << " tp: "<<tp << " fp "<<fp << " auc: "<<auc << endl;
+            pre_fp = fp;
+            pre_tp = tp;
+        }
+       
+        return auc;
+    };
+
 
     for(ffm_int iter = 1; iter <= param.nr_iters; iter++) {
         timer.tic();
@@ -607,9 +684,15 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
 
         if(!va.is_empty()) {
             ffm_double va_loss = one_epoch(va, false);
+            //ffm_double va_loss = 0.0;
+
+            ffm_double va_auc_loss = auc_metric(va);
+            //ffm_double va_auc_loss = 0.0;
 
             cout.width(13);
             cout << fixed << setprecision(5) << va_loss;
+            cout.width(13);
+            cout << fixed << setprecision(5) << va_auc_loss;
 
             if(auto_stop) {
                 if(va_loss > best_va_loss) {

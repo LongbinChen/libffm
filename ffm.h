@@ -62,6 +62,8 @@ inline ffm_int get_k_aligned(ffm_int k) {
     return (ffm_int) ceil((ffm_float)k / kALIGN) * kALIGN;
 }
 
+ffm_double calculate_auc(vector<ffm_float>& true_vector, vector<ffm_float>& pred_vector);
+
 } // namespace ffm
 
 #endif // _LIBFFM_H
