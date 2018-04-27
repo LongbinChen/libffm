@@ -664,9 +664,8 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
                     sigmoid_t = 1.0 / (1.0 + exp(delta_t));
                     bin_idx = int(sigmoid_t * bin_auc + 0.5);
                     negative_pair_count[bin_idx] += 1;
-                } else {
-                    pre_t = t; 
-                }
+                } 
+                pre_t = t; 
 
                 sample_count += 1;
             }
@@ -677,7 +676,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
         ffm_double pre_tp = 1.0;
         ffm_double pre_fp = 1.0;
         ffm_double auc = 0.0;
-        //cout<< "positive: " <<positive << ", negative: "<< negative << endl;
+        //cout<< "positive: " <<positive << ", negative: "<< negative << " sample_count " << sample_count << endl;
         
         for (int i = 0; i < bin_auc; i ++){
             true_positive += positive_count[i];
