@@ -104,6 +104,7 @@ inline ffm_float wTx(
 
                 for(ffm_int d = 0; d < align0; d += kALIGN * 2)
                 {
+                    /* original libffm
                     ffm_float *w1 = w1_base + d;
                     ffm_float *w2 = w2_base + d;
 
@@ -130,6 +131,39 @@ inline ffm_float wTx(
                             _mm_mul_ps(_mm_rsqrt_ps(XMMwg1), XMMg1)));
                     XMMw2 = _mm_sub_ps(XMMw2, _mm_mul_ps(XMMeta, 
                             _mm_mul_ps(_mm_rsqrt_ps(XMMwg2), XMMg2)));
+
+                    _mm_store_ps(w1, XMMw1);
+                    _mm_store_ps(w2, XMMw2);
+
+                    _mm_store_ps(wg1, XMMwg1);
+                    _mm_store_ps(wg2, XMMwg2);
+                    */
+
+                    ffm_float *w1 = w1_base + d;
+                    ffm_float *w2 = w2_base + d;
+
+                    ffm_float *wg1 = w1 + kALIGN;
+                    ffm_float *wg2 = w2 + kALIGN;
+
+                    __m128 XMMw1 = _mm_load_ps(w1);
+                    __m128 XMMw2 = _mm_load_ps(w2);
+
+                    __m128 XMMwg1 = _mm_load_ps(wg1);
+                    __m128 XMMwg2 = _mm_load_ps(wg2);
+
+                    __m128 XMMg1 = _mm_mul_ps(XMMkappav, XMMw2);
+                    __m128 XMMg2 = _mm_mul_ps(XMMkappav, XMMw1);
+
+                    XMMwg1 = _mm_add_ps(XMMwg1, _mm_mul_ps(XMMg1, XMMg1));
+                    XMMwg2 = _mm_add_ps(XMMwg2, _mm_mul_ps(XMMg2, XMMg2));
+
+                    XMMw1 = _mm_sub_ps(XMMw1, _mm_mul_ps(XMMeta, 
+                            _mm_add_ps(_mm_mul_ps(XMMlambda, XMMw1),
+                            _mm_mul_ps(_mm_rsqrt_ps(XMMwg1), XMMg1))));
+                    
+                    XMMw2 = _mm_sub_ps(XMMw2, _mm_mul_ps(XMMeta, 
+                            _mm_add_ps(_mm_mul_ps(XMMlambda, XMMw2),                    
+                            _mm_mul_ps(_mm_rsqrt_ps(XMMwg2), XMMg2))));
 
                     _mm_store_ps(w1, XMMw1);
                     _mm_store_ps(w2, XMMw2);
@@ -203,6 +237,8 @@ inline ffm_float wTx(
                 ffm_float *wg2 = w2 + kALIGN;
                 for(ffm_int d = 0; d < align0; d += kALIGN * 2)
                 {
+                    /*
+                    libffm original
                     ffm_float g1 = lambda * w1[d] + kappa * w2[d] * v;
                     ffm_float g2 = lambda * w2[d] + kappa * w1[d] * v;
 
@@ -211,6 +247,16 @@ inline ffm_float wTx(
 
                     w1[d] -= eta / sqrt(wg1[d]) * g1;
                     w2[d] -= eta / sqrt(wg2[d]) * g2;
+                    */
+                    ffm_float g1 = kappa * w2[d] * v;
+                    ffm_float g2 = kappa * w1[d] * v;
+
+                    wg1[d] += g1 * g1;
+                    wg2[d] += g2 * g2;
+
+                    w1[d] -= eta * (lambda * w1[d] + 1.0 / sqrt(0.000000001 + wg1[d]) * g1);
+                    w2[d] -= eta * (lambda * w2[d] + 1.0 / sqrt(0.000000001 + wg2[d]) * g2);
+                   
                 }
             } else {
                 for(ffm_int d = 0; d < align0; d += kALIGN * 2)
