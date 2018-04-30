@@ -104,7 +104,7 @@ inline ffm_float wTx(
 
                 for(ffm_int d = 0; d < align0; d += kALIGN * 2)
                 {
-                    /* original libffm
+                    /* original libffm   
                     ffm_float *w1 = w1_base + d;
                     ffm_float *w2 = w2_base + d;
 
@@ -137,7 +137,8 @@ inline ffm_float wTx(
 
                     _mm_store_ps(wg1, XMMwg1);
                     _mm_store_ps(wg2, XMMwg2);
-                    */
+                 */
+                   /* new regular */
 
                     ffm_float *w1 = w1_base + d;
                     ffm_float *w2 = w2_base + d;
@@ -170,6 +171,7 @@ inline ffm_float wTx(
 
                     _mm_store_ps(wg1, XMMwg1);
                     _mm_store_ps(wg2, XMMwg2);
+                    
                 }
             }
             else
@@ -238,7 +240,8 @@ inline ffm_float wTx(
                 for(ffm_int d = 0; d < align0; d += kALIGN * 2)
                 {
                     /*
-                    libffm original
+                    libffm original   
+                    */
                     ffm_float g1 = lambda * w1[d] + kappa * w2[d] * v;
                     ffm_float g2 = lambda * w2[d] + kappa * w1[d] * v;
 
@@ -247,7 +250,8 @@ inline ffm_float wTx(
 
                     w1[d] -= eta / sqrt(wg1[d]) * g1;
                     w2[d] -= eta / sqrt(wg2[d]) * g2;
-                    */
+                   
+                    /* new form 
                     ffm_float g1 = kappa * w2[d] * v;
                     ffm_float g2 = kappa * w1[d] * v;
 
@@ -256,6 +260,7 @@ inline ffm_float wTx(
 
                     w1[d] -= eta * (lambda * w1[d] + 1.0 / sqrt(0.000000001 + wg1[d]) * g1);
                     w2[d] -= eta * (lambda * w2[d] + 1.0 / sqrt(0.000000001 + wg2[d]) * g2);
+                    */
                    
                 }
             } else {
@@ -550,7 +555,7 @@ ffm_model::~ffm_model() {
 void ffm_read_problem_to_disk(string txt_path, string bin_path) {
 
     Timer timer;
-    
+  
     cout << "First check if the text file has already been converted to binary format " << flush;
     bool same_file = check_same_txt_bin(txt_path, bin_path);
     cout << "(" << fixed << setprecision(1) << timer.toc() << " seconds)" << endl;
@@ -651,7 +656,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
     };
 
 
-    auto auc_metric = [&] (problem_on_disk &prob, ffm_double& pair_auc, ffm_double& total_norm) {
+    auto auc_metric = [&] (problem_on_disk &prob, ffm_double& pair_auc) {
 
         // for calculating auc
         int bin_auc = 10000;
@@ -663,7 +668,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
         vector<int> negative_pair_count;
         int sample_count = 0;
         ffm_float pre_t = 0;
-        total_norm = 0.0;
+
 
         for (int id = 0; id < bin_auc; id++) {
             positive_count.push_back(0);
@@ -689,7 +694,7 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
 
                 ffm_float r = param.normalization? prob.R[i] : 1;
 
-                total_norm += prob.R[i];
+  
 
                 ffm_double t = wTx(begin, end, r, model);
                 ffm_double sigmoid_t = 1.0 / (1.0 + exp(-t));
@@ -750,11 +755,30 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             pre_fp = fp;
             pre_tp = tp;
         }
-        total_norm /= (positive + negative);
+
        
         return auc;
     };
 
+
+    auto model_norm = [&] () {
+
+
+        ffm_double total_norm = 0.0;
+
+        ffm_int align0 = 2 * get_k_aligned(model.k);
+        ffm_int align1 = model.m * align0;
+
+        for(int j = 0; j < model.n; j ++) {
+            for (int f = 0; f < model.m; f ++) {
+                ffm_float *w = model.W + (ffm_long)j * align1 + f * align0;
+                for (int d = 0; d < align0; d += kALIGN * 2) {
+                    total_norm += w[d] * w[d];
+                }
+            }
+        }
+        return total_norm / (model.n * model.m * model.k);    
+    };
 
     for(ffm_int iter = 1; iter <= param.nr_iters; iter++) {
         timer.tic();
@@ -771,8 +795,9 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             //ffm_double va_loss = 0.0;
 
             ffm_double pair_auc;
-            ffm_double total_norm;
-            ffm_double va_auc_loss = auc_metric(va, pair_auc, total_norm);
+            ffm_double va_auc_loss = auc_metric(va, pair_auc);
+            ffm_double total_norm = model_norm();
+            
 
             cout.width(13);
             cout << fixed << setprecision(5) << va_loss;
