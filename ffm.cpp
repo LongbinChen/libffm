@@ -596,9 +596,11 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
         cout << "va_auc";
         cout.width(13);
         cout << "pair_auc";
-        cout.width(13);
-        cout << "norm";
     }
+    cout.width(13);
+    cout << "norm";
+    cout.width(13);
+    cout << "loss";
     cout.width(13);
     cout << "tr_time";
     cout.width(13);
@@ -807,6 +809,9 @@ ffm_model ffm_train_on_disk(string tr_path, string va_path, ffm_parameter param)
             cout << fixed << setprecision(5) << pair_auc;
             cout.width(13);
             cout << fixed << setprecision(5) << total_norm;
+            cout.width(13);
+            cout << fixed << setprecision(5) << param.lambda * total_norm  + tr_loss;
+
 
 
             if(auto_stop) {
