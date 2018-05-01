@@ -21,7 +21,7 @@ struct Option {
 
 string convert_help() {
     return string(
-"usage: ffm-convert model_file output_file field_id\n"
+"usage: ffm-convert model_file output_file \n"
 );
 }
 
@@ -35,12 +35,12 @@ Option parse_option(int argc, char **argv) {
 
     Option option;
 
-    if(argc != 4)
+    if(argc != 3)
         throw invalid_argument("cannot parse argument");
 
     option.model_path = string(args[1]);
     option.output_path = string(args[2]);
-    option.field_id = atoi(args[3].c_str());
+
     
 
     return option;
@@ -48,7 +48,7 @@ Option parse_option(int argc, char **argv) {
 
 
 #if defined USESSE
-void convert(string model_path, string output_path, int field_id) {
+void convert(string model_path, string output_path) {
     ofstream f_out(output_path);
     ffm_model model = ffm_load_model(model_path);
     ffm_int align0 = 2 * get_k_aligned(model.k);
@@ -61,22 +61,23 @@ void convert(string model_path, string output_path, int field_id) {
     cout << "kALIGN " << kALIGN << endl;
 
 
-    for(int f = 0; f < model.n ; f ++){
-        int j = field_id;
-        ffm_float *w = model.W + (ffm_long)f*align1 + j*align0;
-        for(ffm_int d = 0; d < align0; d += kALIGN * 2){
-            __m128  XMMw1 = _mm_load_ps(w+d);
-            float result[4];
-            _mm_store_ps(result, XMMw1);
-            if (d > 0) { f_out <<  '\t';}
-            f_out << result[0] << '\t' << result[1] << '\t' << result[2] << '\t' << result[3];
+    for(int j = 0; j < model.n ; j ++){
+        for (int f = 0; f < model.m; f ++) {
+            ffm_float *w = model.W + (ffm_long)j*align1 + f*align0;
+            f_out << j << '\t' << f;
+            for(ffm_int d = 0; d < align0; d += kALIGN * 2){
+                __m128  XMMw1 = _mm_load_ps(w+d);
+                float result[4];
+                _mm_store_ps(result, XMMw1);
+                f_out << '\t' << result[0] << '\t' << result[1] << '\t' << result[2] << '\t' << result[3];
+            }
+            f_out << endl;
         }
-        f_out << endl;
     }
 }
 
 #else
-void convert(string model_path, string output_path, int field_id) {
+void convert(string model_path, string output_path) {
     ofstream f_out(output_path);
     ffm_model model = ffm_load_model(model_path);
     ffm_int align0 = 2 * get_k_aligned(model.k);
@@ -89,14 +90,15 @@ void convert(string model_path, string output_path, int field_id) {
     cout << "kALIGN " << kALIGN << endl;
 
 
-    for(int f = 0; f < model.n ; f ++){
-        int j = field_id;
-        ffm_float *w = model.W + (ffm_long)f*align1 + j*align0;
-        for(ffm_int d = 0; d < align0; d += kALIGN * 2){
-            if (d > 0) { f_out << '\t' ;}
-            f_out << w[d];
+    for(int j = 0; j < model.n ; j ++){
+        for (int f = 0; f < model.m; f ++ ) {
+            ffm_float *w = model.W + (ffm_long)j * align1 + f * align0;
+            f_out << j << '\t' << f  ;
+            for(ffm_int d = 0; d < align0; d += kALIGN * 2) {                
+                f_out << '\t' << w[d];
+            }
+            f_out << endl;
         }
-        f_out << endl;
     }
 }
 #endif
@@ -110,7 +112,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    convert(option.model_path, option.output_path, option.field_id);
+    convert(option.model_path, option.output_path);
 
     return 0;
 }
